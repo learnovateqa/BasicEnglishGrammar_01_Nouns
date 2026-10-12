@@ -380,6 +380,22 @@ input.txt{border-color:var(--lavB)} input.txt:focus{border-color:var(--ink);box-
 textarea.txt.wr{width:100%;min-height:76px;resize:vertical;font:inherit;padding:11px 13px;border:1.5px solid var(--lavB);border-radius:12px;background:#fff;color:var(--ink);line-height:1.5}
 textarea.txt.wr:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px var(--lav)}
 .wcount{font-size:12.5px;color:var(--muted);margin-top:4px}.wcount.ok{color:#2E7D4F;font-weight:600}
+.rvbox h2{font-size:21px;margin:0 0 4px}
+.rvbox.mist .rvw.ok{display:none}
+details.rvp{border:1px solid var(--line);border-radius:14px;margin:10px 0;overflow:hidden;background:#fff}
+details.rvp summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;justify-content:space-between;gap:10px;background:var(--lav)}
+details.rvp summary::-webkit-details-marker{display:none}details.rvp summary span{font-size:13px;color:var(--muted)}
+details.rvp[open] summary{border-bottom:1px solid var(--lavB)}
+.rvw{margin:10px 12px;border:1px solid var(--line);border-left:5px solid var(--line);border-radius:12px;padding:10px 12px}
+.rvw.ok{border-left-color:var(--greenB);background:#F6FBF8}.rvw.bad{border-left-color:var(--pink);background:var(--pink-xl)}.rvw.info{border-left-color:var(--blueB);background:#F5F9FE}
+.rvw-h{display:flex;justify-content:space-between;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.rvw-n{color:var(--muted)}.rvw.ok .rvw-m{color:#2E7D4F}.rvw.bad .rvw-m{color:var(--pink-d)}.rvw.info .rvw-m{color:var(--ink2)}
+.rvw-q{font-weight:500;margin:4px 0 6px}
+.rvw-a{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rvw-a span{display:block;font-size:11.5px;color:var(--muted)}.rvw-a b{font-weight:600;word-break:break-word}
+@media(max-width:520px){.rvw-a{grid-template-columns:1fr}}
+.rvw-e{color:var(--muted)}.rvw-x{font-size:13px;color:var(--ink2);margin:6px 0 0}
+.rvw-l{list-style:none;padding:0;margin:4px 0 0;display:grid;gap:3px;font-size:14px}.rvw-l li.g{color:#2E7D4F}.rvw-l li.w{color:var(--pink-d)}
+.rvw-case{margin:12px 12px 0;background:var(--blue);border:1px solid var(--blueB);border-radius:12px;padding:10px 12px;font-size:14px}.rvw-case p{margin:4px 0 0}
 </style>
 </head>
 <body>
@@ -537,6 +553,7 @@ const warn = [
   ["📧", `When you submit, your score is <b>sent to ${esc(M.teacher)} automatically</b>. Type your email correctly.`],
   ["📸", `Also <b>take a screenshot of your score</b> and keep it, or turn it in on Google Classroom.`],
   ["👀", `<b>Stay on this page.</b> If you leave it during the exam (another tab, app or browser), it is <b>recorded</b> and sent to ${esc(M.teacher)}.`],
+  ["✅", `After you submit, you will see <b>the correct answer for every item</b>, so you can learn from your mistakes.`],
   ["🤫", `Only press Start when you have <b>${M.minutes} quiet minutes</b> free.`],
   ["📖", `Read the study reviewer first. Start with the section <b>How to take this quiz</b>.`],
 ];
@@ -956,7 +973,7 @@ function finish(auto) {
   awayClose(cur);
   const away = cur.away ? { count: cur.away.count, ms: cur.away.ms } : { count: 0, ms: 0 };
   const wrote = cur.a.p6.filter(v => wc(v) >= WMIN).length;
-  const res = { wrote, away, name: cur.name, email: cur.email || "", n: cur.n, raw, pct, pass: raw >= PASS_ITEMS, pts, start: cur.start, at: now, used: now - cur.start, auto: !!auto };
+  const res = { a: JSON.parse(JSON.stringify(cur.a)), wrote, away, name: cur.name, email: cur.email || "", n: cur.n, raw, pct, pass: raw >= PASS_ITEMS, pts, start: cur.start, at: now, used: now - cur.start, auto: !!auto };
   cur.done = true; S.current = null; S.last = res;
   const payload = { quiz: M.title, name: res.name, email: res.email, score: `${raw} / ${TOTAL}`, percentage: pct + "%", result: res.pass ? "PASS" : "FAIL",
     parts: AUTO.map(p => `P${p + 1} ${PART_NAMES[p]}: ${pts[p]}/${COUNTS[p]}`).join(" | "),
@@ -1014,6 +1031,37 @@ function setSendLine() {
 window.addEventListener("online", flushOutbox);
 window.addEventListener("storage", e => { if (e.key === SKEY && !$("#vStart").classList.contains("hide")) renderStart(); });
 
+
+/* ---------- answer review (shown after submit) ---------- */
+function reviewHTML(a) {
+  const L = "ABCD"; let n = 0, out = [];
+  const row = (num, q, mine, right, ok, note) => `<div class="rvw ${ok === null ? "info" : ok ? "ok" : "bad"}"><div class="rvw-h"><span class="rvw-n">Item ${num}</span><span class="rvw-m">${ok === null ? "Ms. Maria marks this" : ok ? "✓ Correct" : "✗ Not correct"}</span></div>
+    <div class="rvw-q">${q}</div><div class="rvw-a"><div><span>Your answer</span><b>${mine}</b></div>${right ? `<div><span>${ok === null ? "Example answer" : "Correct answer"}</span><b>${right}</b></div>` : ""}</div>${note ? `<p class="rvw-x">${note}</p>` : ""}</div>`;
+  const blank = '<i class="rvw-e">(no answer)</i>';
+  const part = (p, html) => out.push(`<details class="rvp" ${p === 0 ? "open" : ""}><summary><b>Part ${p + 1} · ${esc(PART_NAMES[p])}</b><span>${p === 5 ? COUNTS[5] + " sentences" : COUNTS[p] + " items"}</span></summary>${html}</details>`);
+  let h = "";
+  P[0].forEach((it, i) => { n = qStart[0] + i; const v = a.p1[i] || ""; h += row(n, esc(it.q), v.trim() ? esc(v) : blank, esc(KEY.p1[i][0]), idOk(v, KEY.p1[i])); }); part(0, h); h = "";
+  P[1].forEach((it, i) => { n = qStart[1] + i; const v = a.p2[i]; h += row(n, esc(it.q), v === null ? blank : (v ? "True" : "False"), KEY.p2[i] ? "True" : "False", v === KEY.p2[i]); }); part(1, h); h = "";
+  P[2].forEach((it, i) => { n = qStart[2] + i; const v = a.p3[i], k = KEY.p3[i]; h += row(n, esc(it.q), v === null ? blank : `${L[v]}) ${esc(it.o[v])}`, `${L[k]}) ${esc(it.o[k])}`, v === k); }); part(2, h); h = "";
+  let j = 0; P[3].forEach(c => { h += `<div class="rvw-case"><b>${esc(c.title)}</b><p>${esc(c.text)}</p></div>`;
+    c.items.forEach(it => { n = qStart[3] + j; const v = a.p4[j], k = KEY.p4[j]; h += row(n, esc(it.q), v === null ? blank : `${L[v]}) ${esc(it.o[v])}`, `${L[k]}) ${esc(it.o[k])}`, v === k); j++; }); }); part(3, h); h = "";
+  P[4].forEach((it, k) => { n = qStart[4] + k; const st = a.p5[k], key = KEY.p5[k];
+    if (it.type === "order") {
+      const mine = it.cards.map((_, slot) => { const c = Object.keys(st.place).find(id => st.place[id] === slot); return c === undefined ? "___" : it.cards[c]; }).join(" ");
+      const right = key.map(id => it.cards[id]).join(" ");
+      const ok = Object.keys(st.place).length === it.cards.length && key.every((id, slot) => st.place[id] === slot);
+      h += row(n, esc(it.q), esc(mine), esc(right), ok);
+    } else {
+      const lines = it.cards.map((c, id) => { const got = st.place[id], want = key[id]; const good = got === want;
+        return `<li class="${good ? "g" : "w"}">${good ? "✓" : "✗"} <b>${esc(c)}</b> → ${good ? esc(it.cats[want]) : `you: ${got === undefined ? "not placed" : esc(it.cats[got])} · correct: <b>${esc(it.cats[want])}</b>`}</li>`; }).join("");
+      const ok = it.cards.every((_, id) => st.place[id] === key[id]);
+      h += `<div class="rvw ${ok ? "ok" : "bad"}"><div class="rvw-h"><span class="rvw-n">Item ${n}</span><span class="rvw-m">${ok ? "✓ Correct" : "✗ Not correct"}</span></div><div class="rvw-q">${esc(it.q)}</div><ul class="rvw-l">${lines}</ul></div>`;
+    } }); part(4, h); h = "";
+  P[5].forEach((it, i) => { n = qStart[5] + i; const v = (a.p6 || [])[i] || ""; h += row(n, esc(it.q), v.trim() ? esc(v) : blank, esc(String(it.ex || "").replace(/^e\.g\.\s*/, "")), null, "Your sentence was sent to " + esc(M.teacher) + ". She will mark it (2 marks)."); }); part(5, h);
+  return `<section class="card rvbox"><h2>✅ Check your answers</h2><p class="hint" style="margin-bottom:10px">Green = correct · Pink = not correct. Read the correct answer, then study that topic again in the reviewer.</p>
+    <div class="rv-tools" style="margin-bottom:8px"><button class="btn sm ghost" type="button" onclick="document.querySelectorAll('details.rvp').forEach(d=>d.open=true)">Open all</button><button class="btn sm ghost" type="button" onclick="document.querySelectorAll('details.rvp').forEach(d=>d.open=false)">Close all</button><button class="btn sm ghost" type="button" onclick="const b=this.closest('.rvbox');b.classList.toggle('mist');this.textContent=b.classList.contains('mist')?'Show all answers':'Show only my mistakes';document.querySelectorAll('details.rvp').forEach(d=>d.open=true)">Show only my mistakes</button></div>${out.join("")}</section>`;
+}
+
 /* ---------- results screen ---------- */
 function renderResult(r, auto) {
   S = load();
@@ -1064,7 +1112,7 @@ function renderResult(r, auto) {
     ${auto ? `<div class="card" style="background:var(--warn-l);border-color:#F5B54A"><b>⏱ Time is up.</b> Your quiz was submitted automatically.</div>` : ""}
     <section class="shotpanel">
       <h2>📸 Take a screenshot NOW</h2>
-      <p class="sub">Your answers are not shown here. ${esc(M.teacher)} releases the answers later.</p>
+      <p class="sub">After your screenshot, <b>scroll down to check every answer</b> and learn from your mistakes.</p>
       <div class="shotgrid"><div class="sg-l"><div class="frame"><span class="frame-l">✂ Screenshot everything inside this line</span>${scoreCard}</div></div><div class="sg-r">
       ${ex}
       <h3 style="margin-top:22px;color:var(--teal)">How to take a screenshot</h3>
@@ -1090,6 +1138,7 @@ function renderResult(r, auto) {
       ${MAX_ATT ? (left > 0 ? `<p>Attempts used: <b>${used} of ${MAX_ATT}</b> · ${left} left${left === 1 ? " — <b style='color:var(--pink-d)'>your next attempt is your LAST</b>" : ""}.</p>` : `<p style="color:var(--bad)"><b>🔒 You have used all ${MAX_ATT} attempts. The quiz is now locked.</b></p>`) : ""}
       <button class="btn ghost" type="button" id="backBtn">Back to the reviewer</button>
     </section>`;
+  if (r.a) $("#resMain").insertAdjacentHTML("beforeend", reviewHTML(r.a));
   $("#backBtn").onclick = renderStart;
   show("vResult");
   setSendLine();
