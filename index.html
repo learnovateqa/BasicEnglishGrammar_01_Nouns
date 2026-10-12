@@ -550,10 +550,6 @@ const warn = [
   MAX_ATT ? ["🔢", `You have <b>${MAX_ATT} attempts only</b>. After the ${ordinal(MAX_ATT)}, the quiz locks.`] : ["🔢", "You have unlimited attempts."],
   ["👆", "Pressing <b>Start uses one attempt</b>, even if you close the page."],
   ["⏱️", "The timer <b>does not stop</b> once it starts. At 0:00 the quiz submits by itself."],
-  ["📧", `When you submit, your score is <b>sent to ${esc(M.teacher)} automatically</b>. Type your email correctly.`],
-  ["📸", `Also <b>take a screenshot of your score</b> and keep it, or turn it in on Google Classroom.`],
-  ["👀", `<b>Stay on this page.</b> If you leave it during the exam (another tab, app or browser), it is <b>recorded</b> and sent to ${esc(M.teacher)}.`],
-  ["✅", `After you submit, you will see <b>the correct answer for every item</b>, so you can learn from your mistakes.`],
   ["🤫", `Only press Start when you have <b>${M.minutes} quiet minutes</b> free.`],
   ["📖", `Read the study reviewer first. Start with the section <b>How to take this quiz</b>.`],
 ];
